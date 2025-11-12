@@ -1,8 +1,9 @@
 #include <iostream>
-#include <list>
+#include <vector>
 #include <thread>
 #include <mutex>
 #include <memory>
+#include <string>
 
 #include "lru_cache.h"
 
@@ -86,39 +87,6 @@ public:
 	}
 };
 
-namespace
-{
-	std::string to_string(int num)
-	{
-		bool bneg = false;
-		if (num < 0)
-		{
-			num = -num;
-			bneg = true;
-		}
-
-		char buff[256];
-		int pos = sizeof(buff);
-		buff[--pos] = 0;
-
-		do
-		{
-			int mod = num % 10;
-			buff[--pos] = '0' + mod;
-			num /= 10;
-		}
-		while(num > 0 && pos > 0);
-
-		if (bneg) buff[--pos] = '-';
-		return (buff + pos);
-	}
-	std::string gen_string(std::string prefix, int number)
-	{
-		prefix += to_string(number);
-		return prefix;
-	}
-};
-
 int main(int argc, char* argv[])
 {
 	int num_threads = 1;
@@ -131,13 +99,13 @@ int main(int argc, char* argv[])
 	std::string strings[max_strings];
 	for(int i = 0; i < max_strings; i++)
 	{
-		strings[i] = to_string(i);
+		strings[i] = std::to_string(i);
 	}
 
-	std::list<std::thread *> threads;
+	std::vector<std::thread> threads;
 	for(int k = 0; k < num_threads; k++)
 	{
-		std::thread *th = new(std::nothrow) std::thread([&](){
+		threads.push_back(std::thread([&](){
 			DNSCache cache(max_size);
 			for(int i = 0; i < 100000; i++)
 			{
@@ -145,15 +113,11 @@ int main(int argc, char* argv[])
 				auto ip = cache.resolve(strings[(i + max_size/3) % max_strings]);
 			}
 		});
-		threads.push_back(th);
 	}
 
-	while(!threads.empty())
+	for (auto &th : threads)
 	{
-		std::thread *th = threads.front();
-		if (th) th->join();
-		delete th;
-		threads.pop_front();
+		th.join();
 	}
 
 	return 0;
